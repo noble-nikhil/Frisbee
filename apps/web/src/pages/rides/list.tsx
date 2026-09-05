@@ -6,7 +6,6 @@ import { LIMITS, VEHICLES, VEHICLE_LABELS, rideSchema, type Ride } from '@frisbe
 import { Page } from '@/components/layout/app-shell'
 import { Button, Card, EmptyState, Input, PageHeader, Select, Sheet, SkeletonList, StatusChip, Tabs, Textarea, useTabParam, useToast } from '@/components/ui'
 import { useMe } from '@/features/auth/auth-context'
-import { VerifiedGate } from '@/features/auth/verified-gate'
 import { createRide } from '@/features/rides/api'
 import { filterRides, useMyRides, useUpcomingRides, type RideFilter } from '@/features/rides/hooks'
 import { useZodForm } from '@/lib/form'
@@ -173,8 +172,7 @@ function OfferSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
         </>
       }
     >
-      <VerifiedGate what="offer rides">
-        <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+      <form onSubmit={submit} noValidate className="flex flex-col gap-4">
           <Input label="From" required error={form.formState.errors.from?.message} {...form.register('from')} />
           <Input label="To" required placeholder="e.g. Vijayawada railway station" error={form.formState.errors.to?.message} {...form.register('to')} />
           <Input label="Leaving at" required type="datetime-local" error={form.formState.errors.start?.message} {...form.register('start')} />
@@ -190,8 +188,7 @@ function OfferSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
           </div>
           <Input label="Cost split" placeholder="e.g. ₹120 each, or free" hint="Just a note. No payments happen in the app." error={form.formState.errors.costNote?.message} {...form.register('costNote')} />
           <Textarea label="Note" rows={2} placeholder="Pickup point, luggage space, music policy" error={form.formState.errors.note?.message} {...form.register('note')} />
-        </form>
-      </VerifiedGate>
+      </form>
     </Sheet>
   )
 }

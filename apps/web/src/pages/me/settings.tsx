@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Moon, Sun } from 'lucide-react'
 import { deleteDoc, query } from 'firebase/firestore'
 import { useQuery } from '@tanstack/react-query'
 import { getDoc } from 'firebase/firestore'
@@ -12,10 +13,12 @@ import { InstallRow } from '@/features/pwa/install'
 import { useCollection } from '@/hooks/use-collection'
 import { cols, doc, subs } from '@/lib/firestore'
 import { friendlyError } from '@/lib/utils'
+import { useTheme } from '@/features/theme/theme-context'
 
 export default function SettingsPage() {
   const me = useMe()
   const { toast } = useToast()
+  const { theme, setTheme } = useTheme()
   const [privacy, setPrivacy] = useState<Privacy>(me.privacy)
   const [busy, setBusy] = useState(false)
   const blocks = useCollection(query(subs.blocks(me.uid)), `blocks-list:${me.uid}`)
@@ -78,6 +81,20 @@ export default function SettingsPage() {
       <section className="flex flex-col gap-3">
         <h2 className="eyebrow">App</h2>
         <Card>
+          <div className="flex items-center justify-between gap-3 border-b border-line pb-4">
+            <div>
+              <div className="text-h3">Appearance</div>
+              <p className="text-small text-ink-3">Choose the day or night theme.</p>
+            </div>
+            <div className="flex gap-1 rounded-sm border border-line p-1">
+              <Button size="sm" variant={theme === 'light' ? 'primary' : 'ghost'} icon={<Sun className="size-4" />} onClick={() => setTheme('light')}>
+                Day
+              </Button>
+              <Button size="sm" variant={theme === 'dark' ? 'primary' : 'ghost'} icon={<Moon className="size-4" />} onClick={() => setTheme('dark')}>
+                Night
+              </Button>
+            </div>
+          </div>
           <InstallRow />
         </Card>
       </section>

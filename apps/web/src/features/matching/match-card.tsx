@@ -36,7 +36,9 @@ export function MatchCard({ match, state, onSkip, compact }: MatchCardProps) {
     }
   }
 
-  const status = local === 'none' ? state : local
+  // Parent data wins after a request is accepted; otherwise the optimistic local
+  // state keeps the button responsive while the Firestore query catches up.
+  const status: ConnectionState = state === 'connected' ? 'connected' : local === 'requested' ? 'requested' : state
 
   return (
     <Card tight={compact} className={compact ? 'w-60 shrink-0 snap-start' : ''}>

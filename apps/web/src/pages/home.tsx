@@ -2,11 +2,11 @@ import { useMemo } from 'react'
 import { Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { getDocs, limit, orderBy, query, where, Timestamp } from 'firebase/firestore'
-import { ShieldCheck, Users } from 'lucide-react'
+import { Users } from 'lucide-react'
 import { Page } from '@/components/layout/app-shell'
 import { MODULES } from '@/components/layout/nav'
 import { Button, Card, EmptyState, ListRow, Section, Skeleton, SkeletonList, StatusChip } from '@/components/ui'
-import { useAuth, useMe } from '@/features/auth/auth-context'
+import { useMe } from '@/features/auth/auth-context'
 import { useConnections, useIncomingRequests, useOutgoingRequests } from '@/features/connections/hooks'
 import { useMatches } from '@/features/matching/hooks'
 import { MatchCard } from '@/features/matching/match-card'
@@ -56,7 +56,6 @@ function useUpcoming() {
 
 export default function HomePage() {
   const me = useMe()
-  const { isCollegeEmail, isVerified } = useAuth()
   const skipped = useLocalSet('frisbee.skipped')
   const connections = useConnections(me.uid)
   const incoming = useIncomingRequests(me.uid)
@@ -74,16 +73,6 @@ export default function HomePage() {
         <h1 className="text-h1">Hi {firstName}</h1>
         <p className="text-small text-ink-2">Here's what's moving on campus.</p>
       </div>
-
-      {isCollegeEmail && !isVerified && (
-        <div className="flex items-center gap-3 rounded-md border border-line bg-warning-bg px-3 py-2.5 text-small">
-          <ShieldCheck className="size-4 shrink-0 text-warning" />
-          <span className="flex-1 text-ink-2">Verify your college email to unlock rides, tutoring and communities.</span>
-          <Link to="/verify" className="font-semibold text-brand-700">
-            Verify
-          </Link>
-        </div>
-      )}
 
       <InstallCard />
 
@@ -128,7 +117,7 @@ export default function HomePage() {
         ) : (
           <div className="hide-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
             {matches.map((m) => (
-              <MatchCard key={m.uid} match={m} compact state={outgoingSet.has(m.uid) ? 'requested' : 'none'} />
+              <MatchCard key={m.uid} match={m} compact state={connections.set.has(m.uid) ? 'connected' : outgoingSet.has(m.uid) ? 'requested' : 'none'} />
             ))}
           </div>
         )}

@@ -6,7 +6,6 @@ import { ERRAND_CITIES, LIMITS, tripSchema, type Trip } from '@frisbee/shared'
 import { Page } from '@/components/layout/app-shell'
 import { Button, Card, Chip, EmptyState, Input, PageHeader, Select, Sheet, SkeletonList, StatusChip, Tabs, Textarea, useTabParam, useToast } from '@/components/ui'
 import { useMe } from '@/features/auth/auth-context'
-import { VerifiedGate } from '@/features/auth/verified-gate'
 import { createTrip } from '@/features/errands/api'
 import { sortTrips, useMyTrips, useTripsIRequested, useUpcomingTrips } from '@/features/errands/hooks'
 import { useZodForm } from '@/lib/form'
@@ -173,8 +172,7 @@ function TripSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
         </>
       }
     >
-      <VerifiedGate what="post trips">
-        <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+      <form onSubmit={submit} noValidate className="flex flex-col gap-4">
           <Select label="Going to" required placeholder="Select" defaultValue="" error={form.formState.errors.city?.message} {...form.register('city')}>
             {ERRAND_CITIES.map((c) => (
               <option key={c}>{c}</option>
@@ -186,8 +184,7 @@ function TripSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
           </div>
           <Input label="Max items" required type="number" min={1} max={LIMITS.errandItems} hint="How many things you are willing to carry" error={form.formState.errors.maxItems?.message} {...form.register('maxItems')} />
           <Textarea label="Note" rows={2} placeholder="e.g. Going by bike, nothing bulky. Near Besant Road mostly." error={form.formState.errors.note?.message} {...form.register('note')} />
-        </form>
-      </VerifiedGate>
+      </form>
     </Sheet>
   )
 }

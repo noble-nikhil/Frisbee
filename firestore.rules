@@ -218,7 +218,7 @@ service cloud.firestore {
 
     match /communityRequests/{id} {
       allow get, list: if isAdmin() || existing().requester.uid == uid();
-      allow create: if isVerified() && isRef(incoming().requester) && incoming().status == 'pending'
+      allow create: if signedIn() && isRef(incoming().requester) && incoming().status == 'pending'
         && str(incoming().name, 80) && str(incoming().purpose, 600) && stamped('createdAt');
       allow update: if isAdmin() && onlyChanges(['status', 'reviewerId', 'note', 'decidedAt']);
     }
@@ -384,7 +384,7 @@ service cloud.firestore {
       function ride() { return get(/databases/$(database)/documents/rides/$(id)).data; }
       function isDriver() { return existing().driver.uid == uid(); }
       allow read: if signedIn();
-      allow create: if isVerified() && isRef(incoming().driver) && incoming().seatsTaken == 0
+      allow create: if signedIn() && isRef(incoming().driver) && incoming().seatsTaken == 0
         && incoming().passengerIds == [] && incoming().status == 'open'
         && incoming().seats >= 1 && incoming().seats <= 6 && stamped('createdAt');
       allow update: if signedIn() && (
@@ -406,7 +406,7 @@ service cloud.firestore {
     match /trips/{id} {
       function trip() { return get(/databases/$(database)/documents/trips/$(id)).data; }
       allow read: if signedIn();
-      allow create: if isVerified() && isRef(incoming().traveller) && incoming().itemCount == 0
+      allow create: if signedIn() && isRef(incoming().traveller) && incoming().itemCount == 0
         && incoming().requesterIds == [] && incoming().status == 'open' && stamped('createdAt');
       // requesters move the counter by one and may add (only) themselves to requesterIds
       allow update: if signedIn() && (
@@ -459,7 +459,7 @@ service cloud.firestore {
     // ------------------------------------------------ tutoring & volunteering
     match /applications/{id} {
       allow get, list: if isAdmin() || existing().applicant.uid == uid();
-      allow create: if isVerified() && isRef(incoming().applicant) && incoming().status == 'pending'
+      allow create: if signedIn() && isRef(incoming().applicant) && incoming().status == 'pending'
         && incoming().kind in ['tutor', 'volunteer'] && stamped('createdAt');
       allow update: if isAdmin() && onlyChanges(['status', 'reviewerId', 'note', 'decidedAt']);
     }

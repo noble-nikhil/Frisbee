@@ -3,7 +3,6 @@ import { GROUP_CATEGORIES, communityRequestSchema } from '@frisbee/shared'
 import { Page } from '@/components/layout/app-shell'
 import { Button, Input, PageHeader, Select, Textarea, useToast } from '@/components/ui'
 import { useMe } from '@/features/auth/auth-context'
-import { VerifiedGate } from '@/features/auth/verified-gate'
 import { requestCommunity } from '@/features/social/api'
 import { useZodForm } from '@/lib/form'
 import { friendlyError } from '@/lib/utils'
@@ -25,8 +24,7 @@ export default function RequestCommunityPage() {
   return (
     <Page>
       <PageHeader title="Request a community" description="Communities are moderated spaces. An admin approves each one and you become its first admin." back="/communities" />
-      <VerifiedGate what="request a community">
-        <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+      <form onSubmit={submit} noValidate className="flex flex-col gap-4">
           <Input label="Name" required error={form.formState.errors.name?.message} {...form.register('name')} />
           <Select label="Category" required placeholder="Select" defaultValue="" error={form.formState.errors.category?.message} {...form.register('category')}>
             {GROUP_CATEGORIES.map((c) => (
@@ -38,8 +36,7 @@ export default function RequestCommunityPage() {
           <Button type="submit" size="lg" loading={form.formState.isSubmitting} className="self-start">
             Send request
           </Button>
-        </form>
-      </VerifiedGate>
+      </form>
     </Page>
   )
 }

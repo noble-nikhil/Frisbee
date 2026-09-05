@@ -6,7 +6,6 @@ import { DAYS, DAY_LABELS, tutorApplicationSchema } from '@frisbee/shared'
 import { Page } from '@/components/layout/app-shell'
 import { Button, Card, Field, Input, PageHeader, Select, StatusChip, Textarea, useToast } from '@/components/ui'
 import { useMe } from '@/features/auth/auth-context'
-import { VerifiedGate } from '@/features/auth/verified-gate'
 import { TagPicker } from '@/features/profile/tag-picker'
 import { applyAsTutor } from '@/features/tutoring/api'
 import { useMyTutorApplication } from '@/features/tutoring/hooks'
@@ -80,7 +79,7 @@ export default function TutorApplyPage() {
           <StatusChip tone="pending">Pending</StatusChip>
         </Card>
       ) : (
-        <VerifiedGate what="apply as a tutor">
+        <>
           {last?.status === 'rejected' && (
             <Card className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
@@ -152,7 +151,7 @@ export default function TutorApplyPage() {
               Send application
             </Button>
           </form>
-        </VerifiedGate>
+        </>
       )}
     </Page>
   )

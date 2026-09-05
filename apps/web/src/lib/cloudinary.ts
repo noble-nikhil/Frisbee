@@ -16,11 +16,13 @@ export async function uploadImage(file: File | Blob, folder: UploadFolder): Prom
   if (file.size > MAX_BYTES) throw new Error('Image is larger than 10 MB')
 
   const body = new FormData()
-  body.append('file', file)
+  // Canvas resizing returns a Blob without a filename. Supplying one keeps
+  // Cloudinary's upload parser consistent across browsers.
+  body.append('file', file, file instanceof File ? file.name : 'frisbee-image.jpg')
   body.append('upload_preset', uploadPreset)
   body.append('folder', `frisbee/${folder}`)
 
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body })
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/image/upload`, { method: 'POST', body })
   if (!res.ok) {
     const detail = (await res.json().catch(() => null)) as { error?: { message?: string } } | null
     throw new Error(explain(res.status, detail?.error?.message ?? ''))

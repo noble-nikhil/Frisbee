@@ -1,4 +1,4 @@
-import { limit, orderBy, query, where } from 'firebase/firestore'
+import { limit, query, where } from 'firebase/firestore'
 import { MessageSquare } from 'lucide-react'
 import { Link } from 'react-router'
 import type { Thread } from '@frisbee/shared'
@@ -25,10 +25,8 @@ export function threadPhoto(t: Thread, me: string) {
 
 export default function MessagesPage() {
   const me = useMe()
-  const threads = useCollection(
-    query(cols.threads, where('members', 'array-contains', me.uid), orderBy('updatedAt', 'desc'), limit(100)),
-    `threads-list:${me.uid}`,
-  )
+  const threads = useCollection(query(cols.threads, where('members', 'array-contains', me.uid), limit(100)), `threads-list:${me.uid}`)
+  const orderedThreads = [...threads.data].sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis())
 
   return (
     <Page>
@@ -51,7 +49,7 @@ export default function MessagesPage() {
         />
       ) : (
         <div className="divide-y divide-line rounded-md border border-line bg-surface px-3">
-          {threads.data.map((t) => {
+          {orderedThreads.map((t) => {
             const unread = t.unread?.[me.uid] ?? 0
             const title = threadTitle(t, me.uid)
             return (

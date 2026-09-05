@@ -78,7 +78,7 @@ function PeopleTab() {
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {matches.map((m) => (
-            <MatchCard key={m.uid} match={m} state={outgoingSet.has(m.uid) ? 'requested' : 'none'} onSkip={skipped.add} />
+            <MatchCard key={m.uid} match={m} state={connections.set.has(m.uid) ? 'connected' : outgoingSet.has(m.uid) ? 'requested' : 'none'} onSkip={skipped.add} />
           ))}
         </div>
       )}
