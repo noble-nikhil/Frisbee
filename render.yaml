@@ -1,0 +1,31 @@
+# Render blueprint for the Node service (free tier). Set the secret env vars in the dashboard.
+services:
+  - type: web
+    name: frisbee-api
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: corepack enable && pnpm install --frozen-lockfile
+    startCommand: pnpm --filter @frisbee/server start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.19.0
+      - key: PORT
+        value: 8787
+      - key: COLLEGE_DOMAIN
+        value: srmap.edu.in
+      - key: FIREBASE_PROJECT_ID
+        value: frisbee-9fcfb
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CRON_KEY
+        generateValue: true

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>frisbee — Why campuses need this (pitch slides)</title>
+<style>
+  :root{
+    --brand:#FF5A1F;--brand-700:#D63C05;--brand-50:#FFF4F0;
+    --teal:#0D9488;--teal-700:#0F766E;--teal-50:#F0FDFA;
+    --canvas:#F4F5F7;--surface:#fff;--line:#E4E7EC;
+    --ink:#111827;--ink-2:#4B5563;--ink-3:#6B7280;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#D9DCE1;color:var(--ink);-webkit-font-smoothing:antialiased;padding:32px}
+  .note{max-width:1280px;margin:0 auto 16px;font-size:13px;color:var(--ink-2)}
+  .slide{width:1280px;height:720px;background:var(--canvas);margin:0 auto 32px;padding:40px 56px 48px;overflow:hidden;position:relative;display:flex;flex-direction:column;border:1px solid var(--line)}
+  .eyebrow{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--brand-700)}
+  h1{font-size:32px;line-height:38px;font-weight:600;letter-spacing:-.02em;margin-top:8px;max-width:1100px}
+  h1 span{color:var(--ink-3);font-weight:400}
+  .grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:16px;margin-top:22px;flex:1;min-height:0}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 22px;display:flex;flex-direction:column;min-height:0}
+  .card .k{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+  .card .n{font-size:48px;line-height:50px;font-weight:600;letter-spacing:-.03em;margin-top:8px;color:var(--ink)}
+  .card .n small{font-size:22px;letter-spacing:-.01em;color:var(--ink-2);font-weight:600;margin-left:6px}
+  .card .n.teal{color:var(--teal-700)}
+  .card .n.brand{color:var(--brand-700)}
+  .card p{font-size:14.5px;line-height:20px;color:var(--ink-2);margin-top:8px}
+  .card p b{color:var(--ink);font-weight:600}
+  .card .src{margin-top:auto;padding-top:8px;font-size:11px;line-height:14px;color:var(--ink-3);border-top:1px solid var(--line)}
+  .foot{position:absolute;left:56px;right:56px;bottom:16px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-3)}
+  .foot b{font-weight:600;color:var(--ink);letter-spacing:-.02em;font-size:14px}
+  .bar{height:5px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:10px}
+  .bar i{display:block;height:100%;background:var(--teal)}
+  /* slide 2: funnel */
+  .funnel{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:16px;margin-top:22px;flex:1;min-height:0}
+  .tier{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px 22px;display:flex;flex-direction:column;min-height:0}
+  .tier .k{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+  .tier .n{font-size:46px;line-height:50px;font-weight:600;letter-spacing:-.03em;margin-top:8px}
+  .tier ul{list-style:none;margin-top:10px;font-size:14.5px;line-height:21px;color:var(--ink-2)}
+  .tier li{padding-left:14px;position:relative}
+  .tier li::before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--teal)}
+  .tier .src{margin-top:auto;padding-top:8px;font-size:11px;line-height:14px;color:var(--ink-3);border-top:1px solid var(--line)}
+  .tier.hl{border-color:var(--brand);border-width:2px}
+  .chip{display:inline-block;align-self:flex-start;font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--brand-50);color:var(--brand-700);margin-top:8px}
+  .est{font-size:13px;line-height:18px;color:var(--ink-3);margin-top:8px}
+</style>
+</head>
+<body>
+
+<p class="note">Slide 1 of 2 — the four headline statistics. 1280 × 720, frisbee design tokens. Screenshot or export to PNG for the deck; full sources and speaker lines are in <code>docs/05-Pitch-Stats-and-Research.md</code>.</p>
+
+<section class="slide">
+  <div>
+    <p class="eyebrow">Why campuses need frisbee</p>
+    <h1>Friendship used to happen by accident. <span>Now it has to be designed.</span></h1>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <span class="k">Market · students in higher education</span>
+      <div class="n">269<small>million</small></div>
+      <p>worldwide, across 22,000+ institutions — more than double the year 2000. <b>4.5 crore</b> of them are in India, 71 % in private colleges.</p>
+      <div class="src">UNESCO Higher Education Global Trends Report 2026 (2024 data) · AISHE 2023-24, Ministry of Education</div>
+    </div>
+
+    <div class="card">
+      <span class="k">Problem · students who feel lonely</span>
+      <div class="n teal">1 in 2</div>
+      <div class="bar"><i style="width:57%"></i></div>
+      <p><b>52 %</b> report high loneliness (Healthy Minds, 84,000 students); <b>57 %</b> lonely sometimes or always (Trellis, 44,000). Worldwide, <b>19–29-year-olds are the loneliest age group</b> — lonelier than people over 65.</p>
+      <div class="src">Healthy Minds Study 2024-25 · Trellis Strategies 2026 · Meta-Gallup Global State of Social Connections, 142 countries</div>
+    </div>
+
+    <div class="card">
+      <span class="k">Cost · belonging decides who graduates</span>
+      <div class="n brand">30<small>%</small></div>
+      <p>of students who quit for personal reasons say it was because they <b>felt alone or isolated</b>. Each 1-point gain in belonging lifts 4-year graduation by <b>+3.4 pts</b> — rivalling thousands of dollars in aid.</p>
+      <div class="src">Trellis Strategies 2026 · Brady, Educational Researcher (AERA) 2025, N = 21,700 · Lumina–Gallup 2025: 32 % consider dropping out every 6 months</div>
+    </div>
+
+    <div class="card">
+      <span class="k">Why now · in-person time with friends, ages 15–24</span>
+      <div class="n">−70<small>%</small></div>
+      <p>From ~150 minutes a day in 2003 to ~40 minutes in 2020. <b>51 %</b> of people say making new friends is difficult — college students included. The meeting points have to be rebuilt.</p>
+      <div class="src">U.S. Surgeon General advisory 2023 (time-use data) · American Friendship Project, PLOS ONE 2024</div>
+    </div>
+  </div>
+
+  <div class="foot"><b>frisbee</b><span>team Hello World · SRM AP</span></div>
+</section>
+
+<p class="note">Slide 2 of 2 — market sizing. Extrapolations are labelled as estimates on purpose; keep the label when you present.</p>
+
+<section class="slide">
+  <div>
+    <p class="eyebrow">Market</p>
+    <h1>One campus first. <span>Then 45 million students who arrive knowing nobody.</span></h1>
+  </div>
+
+  <div class="funnel">
+    <div class="tier">
+      <span class="k">TAM · worldwide</span>
+      <div class="n">269 M</div>
+      <ul>
+        <li>22,000+ accredited institutions</li>
+        <li>43 % of college-age population enrolled — record high</li>
+        <li>27 % of 19–29-year-olds very or fairly lonely</li>
+      </ul>
+      <p class="est">Estimate: 27 % × 269 M ≈ <b>~73 M lonely university students</b></p>
+      <div class="src">UNESCO 2026 · Meta-Gallup 2023</div>
+    </div>
+
+    <div class="tier">
+      <span class="k">SAM · India</span>
+      <div class="n">4.5 cr</div>
+      <ul>
+        <li>~3.5 crore undergraduates</li>
+        <li>59,533 institutions; private colleges hold 71 % of college enrolment</li>
+        <li>India: 29 % very or fairly lonely</li>
+      </ul>
+      <p class="est">Estimate: 29 % × 4.5 cr ≈ <b>~1.3 crore</b> students</p>
+      <div class="src">AISHE 2023-24 · Meta-Gallup India (n = 2,006)</div>
+    </div>
+
+    <div class="tier hl">
+      <span class="k">Beachhead · SRM AP</span>
+      <div class="n">2,300+</div>
+      <span class="chip">Launching here</span>
+      <ul>
+        <li>Residential campus, 14 % students from outside the state</li>
+        <li>Shared routes: Mangalagiri · Vijayawada · Guntur · airport</li>
+        <li>Next: private universities in AP &amp; Telangana, then the SRM group</li>
+      </ul>
+      <p class="est">At "1 in 2": <b>~1,100+ students</b> on this campus are lonely today</p>
+      <div class="src">Careers360 listing — confirm current headcount with the registrar</div>
+    </div>
+  </div>
+
+  <div class="foot"><b>frisbee</b><span>team Hello World · SRM AP</span></div>
+</section>
+
+</body>
+</html>

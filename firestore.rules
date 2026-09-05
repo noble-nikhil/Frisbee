@@ -1,0 +1,534 @@
+rules_version = '2';
+
+// frisbee — Firestore security rules
+// Deny by default. Every collection has an explicit match. Roles are read from
+// custom claims when the Node service has set them, and from users/{uid}.roles
+// otherwise, so the app works with or without the service.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- helpers
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function isSelf(id) { return signedIn() && uid() == id; }
+    function userPath(id) { return /databases/$(database)/documents/users/$(id); }
+    function me() { return get(userPath(uid())).data; }
+    function claim(name) { return signedIn() && name in request.auth.token && request.auth.token[name] == true; }
+    function isAdmin() { return signedIn() && (claim('admin') || me().roles.admin == true); }
+    function isVerified() { return signedIn() && (claim('verifiedStudent') || me().roles.verifiedStudent == true); }
+    function isTutor() { return signedIn() && (claim('tutor') || me().roles.tutor == true); }
+    function isVolunteer() { return signedIn() && (claim('volunteer') || me().roles.volunteer == true); }
+    function collegeEmailVerified() {
+      return 'email' in request.auth.token && request.auth.token.email_verified == true
+        && request.auth.token.email.lower().matches('.*@srmap[.]edu[.]in');
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function changed() { return incoming().diff(existing()).affectedKeys(); }
+    function onlyChanges(fields) { return changed().hasOnly(fields); }
+    function str(v, max) { return v is string && v.size() <= max; }
+    function delta(field, d) { return incoming()[field] is int && incoming()[field] - existing()[field] == d; }
+    function counterStep(field) { return delta(field, 1) || delta(field, -1); }
+    function pairId(a, b) { return a < b ? a + '_' + b : b + '_' + a; }
+    function connected(a, b) { return exists(/databases/$(database)/documents/connections/$(pairId(a, b))); }
+    function blockedBy(owner, other) { return exists(/databases/$(database)/documents/users/$(owner)/blocks/$(other)); }
+    function isRef(r) { return r is map && r.uid == uid() && str(r.name, 60); }
+    function stamped(field) { return incoming()[field] == request.time; }
+
+    // ------------------------------------------------------------------ users
+    match /users/{userId} {
+      allow get: if signedIn() && (isSelf(userId) || isAdmin()
+        || existing().privacy.profile != 'connections' || connected(uid(), userId));
+      // Non-admin list queries must filter privacy.profile == 'everyone'.
+      allow list: if isAdmin() || (signedIn() && existing().privacy.profile == 'everyone');
+
+      allow create: if isSelf(userId)
+        && incoming().roles == { 'verifiedStudent': false, 'tutor': false, 'volunteer': false, 'admin': false }
+        && incoming().suspended == false && incoming().profileComplete == false
+        && (!('email' in request.auth.token) || incoming().email == request.auth.token.email)
+        && validUser();
+
+      allow update: if (isAdmin() && onlyChanges(['roles', 'suspended', 'updatedAt']))
+        || (isSelf(userId) && selfUpdate())
+        || (signedIn() && onlyChanges(['stats']) && statsStep());
+
+      function validUser() {
+        return str(incoming().displayName, 60) && str(incoming().bio, 400)
+          && incoming().skills is list && incoming().skills.size() <= 12
+          && incoming().interests is list && incoming().interests.size() <= 12
+          && incoming().searchTokens is list && incoming().searchTokens.size() <= 400;
+      }
+      function selfUpdate() {
+        return !changed().hasAny(['email', 'emailDomain', 'createdAt', 'suspended', 'stats'])
+          && validUser() && rolesOk();
+      }
+      // A user may only flip their own verifiedStudent flag, and only with a verified college address.
+      function rolesOk() {
+        return incoming().roles.tutor == existing().roles.tutor
+          && incoming().roles.volunteer == existing().roles.volunteer
+          && incoming().roles.admin == existing().roles.admin
+          && (incoming().roles.verifiedStudent == existing().roles.verifiedStudent
+              || (incoming().roles.verifiedStudent == true && collegeEmailVerified()));
+      }
+      function statsStep() {
+        return (incoming().stats.connections - existing().stats.connections) in [-1, 0, 1]
+          && (incoming().stats.groups - existing().stats.groups) in [-1, 0, 1];
+      }
+
+      match /notifications/{id} {
+        allow read, update, delete: if isSelf(userId);
+        // anyone signed in may notify anyone else (create-only, shape-checked, timestamped)
+        allow create: if signedIn() && incoming().read == false && stamped('createdAt')
+          && str(incoming().title, 120) && str(incoming().body, 300) && str(incoming().link, 200)
+          && !blockedBy(userId, uid());
+      }
+      match /blocks/{other} {
+        allow read, write: if isSelf(userId);
+      }
+    }
+
+    // ------------------------------------------------------------ connections
+    match /connectionRequests/{id} {
+      allow get, list: if isAdmin() || existing().from == uid() || existing().to == uid();
+      allow create: if signedIn() && incoming().from == uid() && incoming().to != uid()
+        && incoming().status == 'pending' && str(incoming().message, 200)
+        && isRef(incoming().fromRef) && stamped('createdAt')
+        && get(userPath(incoming().to)).data.privacy.requests == 'everyone'
+        && !blockedBy(incoming().to, uid());
+      allow update: if onlyChanges(['status', 'respondedAt']) && existing().status == 'pending'
+        && ((existing().to == uid() && incoming().status in ['accepted', 'declined'])
+            || (existing().from == uid() && incoming().status == 'withdrawn'));
+    }
+
+    match /connections/{pairId} {
+      allow get, list: if signedIn() && uid() in existing().uids;
+      // Created inside the accept transaction by the recipient; the request must end up accepted.
+      allow create: if signedIn() && incoming().uids.size() == 2 && uid() in incoming().uids
+        && pairId == pairId(incoming().uids[0], incoming().uids[1])
+        && getAfter(/databases/$(database)/documents/connectionRequests/$(incoming().requestId)).data.status == 'accepted'
+        && getAfter(/databases/$(database)/documents/connectionRequests/$(incoming().requestId)).data.to == uid()
+        && getAfter(/databases/$(database)/documents/connectionRequests/$(incoming().requestId)).data.from in incoming().uids;
+      allow delete: if signedIn() && (uid() in existing().uids || isAdmin());
+    }
+
+    // -------------------------------------------------------------- messaging
+    match /threads/{threadId} {
+      // `resource == null` → a `get` for a DM that does not exist yet (openDm probes before creating)
+      allow get: if signedIn() && (resource == null || uid() in existing().members);
+      allow list: if signedIn() && uid() in existing().members;
+      // Admins may open a thread on someone else's behalf (community approval creates the owner's chat).
+      allow create: if signedIn() && (uid() in incoming().members || (isAdmin() && incoming().kind != 'dm'))
+        && incoming().members.size() <= 500 && (incoming().kind != 'dm' || dmOk());
+      // Members may post (lastMessage/unread), add people, or leave. Non-members may
+      // add themselves to a group/context thread when they belong to its parent.
+      allow update: if signedIn() && (
+        (uid() in existing().members && !changed().hasAny(['kind', 'createdAt']))
+        || (existing().kind != 'dm' && addsOnlySelf() && belongsToParent())
+      );
+      function dmOk() {
+        return incoming().members.size() == 2
+          && threadId == pairId(incoming().members[0], incoming().members[1])
+          && !blockedBy(otherOf(incoming().members), uid())
+          && (get(userPath(otherOf(incoming().members))).data.privacy.messages == 'everyone'
+              || connected(uid(), otherOf(incoming().members)));
+      }
+      function otherOf(members) { return members[0] == uid() ? members[1] : members[0]; }
+      function addsOnlySelf() {
+        return onlyChanges(['members', 'memberInfo', 'unread', 'updatedAt'])
+          && incoming().members.hasAll(existing().members)
+          && incoming().members.removeAll(existing().members) == [uid()];
+      }
+      function belongsToParent() {
+        return 'contextRef' in existing()
+          && exists(/databases/$(database)/documents/$(existing().contextRef.collection)/$(existing().contextRef.id)/members/$(uid()));
+      }
+
+      match /messages/{messageId} {
+        function member() { return uid() in get(/databases/$(database)/documents/threads/$(threadId)).data.members; }
+        allow read: if signedIn() && member();
+        allow create: if signedIn() && member() && str(incoming().text, 2000) && stamped('createdAt')
+          && (incoming().senderId == uid() || (incoming().senderId == 'system' && incoming().type == 'system'));
+      }
+    }
+
+    // ----------------------------------------------------- groups & communities
+    function socialRead() { return signedIn(); }
+    function socialCreate() {
+      return signedIn() && incoming().ownerId == uid() && incoming().memberIds == [uid()]
+        && incoming().memberCount == 1 && incoming().mods == [] && str(incoming().name, 80)
+        && str(incoming().description, 1200) && stamped('createdAt');
+    }
+    function isStaffOf(data) { return data.ownerId == uid() || uid() in data.mods || isAdmin(); }
+    // join/leave: memberIds gains or loses exactly the caller, memberCount moves with it
+    function membershipStep() {
+      return onlyChanges(['memberIds', 'memberCount'])
+        && ((incoming().memberIds.removeAll(existing().memberIds) == [uid()] && delta('memberCount', 1))
+            || (existing().memberIds.removeAll(incoming().memberIds) == [uid()] && delta('memberCount', -1)));
+    }
+    function staffMembershipStep() {
+      return onlyChanges(['memberIds', 'memberCount']) && counterStep('memberCount');
+    }
+
+    match /groups/{groupId} {
+      function group() { return get(/databases/$(database)/documents/groups/$(groupId)).data; }
+      function isMember() { return uid() in group().memberIds; }
+      allow read: if socialRead();
+      allow create: if socialCreate();
+      allow update: if signedIn() && (
+        (isStaffOf(existing()) && !changed().hasAny(['ownerId', 'createdAt']))
+        || (membershipStep() && (existing().visibility == 'public' || approvedRequest() || isStaffOf(existing())))
+        || (isStaffOf(existing()) && staffMembershipStep())
+      );
+      allow delete: if isStaffOf(existing());
+      function approvedRequest() {
+        return get(/databases/$(database)/documents/groups/$(groupId)/requests/$(uid())).data.status == 'approved';
+      }
+
+      match /members/{memberId} {
+        allow read: if signedIn();
+        allow create: if isSelf(memberId) || isStaffOf(group());
+        allow update, delete: if isSelf(memberId) || isStaffOf(group());
+      }
+      match /requests/{requesterId} {
+        allow read: if isSelf(requesterId) || isStaffOf(group());
+        allow create: if isSelf(requesterId) && incoming().status == 'pending';
+        allow update: if isStaffOf(group()) && onlyChanges(['status']);
+        allow delete: if isSelf(requesterId) || isStaffOf(group());
+      }
+      match /posts/{postId} {
+        allow read: if signedIn();
+        allow create: if isMember() && isRef(incoming().author) && str(incoming().text, 2000) && stamped('createdAt');
+        allow update: if signedIn() && (
+          (existing().author.uid == uid() && onlyChanges(['text', 'imageURL']))
+          || (isMember() && onlyChanges(['reactions', 'commentCount']))
+          || (isStaffOf(group()) && onlyChanges(['pinned']))
+        );
+        allow delete: if existing().author.uid == uid() || isStaffOf(group());
+        match /comments/{commentId} {
+          allow read: if signedIn();
+          allow create: if isMember() && isRef(incoming().author) && str(incoming().text, 500) && stamped('createdAt');
+          allow delete: if existing().author.uid == uid() || isStaffOf(group());
+        }
+        match /reactions/{reactorId} {
+          allow read: if signedIn();
+          allow write: if isSelf(reactorId) && isMember();
+        }
+      }
+    }
+
+    match /communityRequests/{id} {
+      allow get, list: if isAdmin() || existing().requester.uid == uid();
+      allow create: if isVerified() && isRef(incoming().requester) && incoming().status == 'pending'
+        && str(incoming().name, 80) && str(incoming().purpose, 600) && stamped('createdAt');
+      allow update: if isAdmin() && onlyChanges(['status', 'reviewerId', 'note', 'decidedAt']);
+    }
+
+    match /communities/{communityId} {
+      function community() { return get(/databases/$(database)/documents/communities/$(communityId)).data; }
+      function isMember() { return uid() in community().memberIds; }
+      allow read: if socialRead();
+      // Communities are created by an admin when approving a request (the requester becomes owner).
+      allow create: if isAdmin() && incoming().memberCount == 1 && incoming().memberIds.size() == 1
+        && incoming().ownerId == incoming().memberIds[0] && str(incoming().name, 80);
+      allow update: if signedIn() && (
+        (isStaffOf(existing()) && !changed().hasAny(['ownerId', 'createdAt']))
+        || (membershipStep() && (existing().visibility == 'public' || approvedRequest() || isStaffOf(existing())))
+        || (isStaffOf(existing()) && staffMembershipStep())
+      );
+      allow delete: if isAdmin();
+      function approvedRequest() {
+        return get(/databases/$(database)/documents/communities/$(communityId)/requests/$(uid())).data.status == 'approved';
+      }
+
+      match /members/{memberId} {
+        allow read: if signedIn();
+        allow create: if isSelf(memberId) || isStaffOf(community());
+        allow update, delete: if isSelf(memberId) || isStaffOf(community());
+      }
+      match /requests/{requesterId} {
+        allow read: if isSelf(requesterId) || isStaffOf(community());
+        allow create: if isSelf(requesterId) && incoming().status == 'pending';
+        allow update: if isStaffOf(community()) && onlyChanges(['status']);
+        allow delete: if isSelf(requesterId) || isStaffOf(community());
+      }
+      match /posts/{postId} {
+        allow read: if signedIn();
+        allow create: if isMember() && isRef(incoming().author) && str(incoming().text, 2000) && stamped('createdAt');
+        allow update: if signedIn() && (
+          (existing().author.uid == uid() && onlyChanges(['text', 'imageURL']))
+          || (isMember() && onlyChanges(['reactions', 'commentCount']))
+          || (isStaffOf(community()) && onlyChanges(['pinned']))
+        );
+        allow delete: if existing().author.uid == uid() || isStaffOf(community());
+        match /comments/{commentId} {
+          allow read: if signedIn();
+          allow create: if isMember() && isRef(incoming().author) && str(incoming().text, 500) && stamped('createdAt');
+          allow delete: if existing().author.uid == uid() || isStaffOf(community());
+        }
+        match /reactions/{reactorId} {
+          allow read: if signedIn();
+          allow write: if isSelf(reactorId) && isMember();
+        }
+      }
+      match /polls/{pollId} {
+        allow read: if signedIn();
+        allow create: if isMember() && incoming().createdBy == uid() && incoming().totalVotes == 0
+          && incoming().options.size() >= 2 && incoming().options.size() <= 6 && stamped('createdAt');
+        // voting updates counts inside a transaction that also writes votes/{uid}
+        allow update: if signedIn() && (
+          (isMember() && onlyChanges(['options', 'totalVotes']) && delta('totalVotes', 1)
+            && existsAfter(/databases/$(database)/documents/communities/$(communityId)/polls/$(pollId)/votes/$(uid())))
+          || ((existing().createdBy == uid() || isStaffOf(community())) && onlyChanges(['closesAt']))
+        );
+        allow delete: if existing().createdBy == uid() || isStaffOf(community());
+        match /votes/{voterId} {
+          allow read: if isSelf(voterId) || isStaffOf(community());
+          allow create: if isSelf(voterId) && isMember()
+            && incoming().optionIds is list && incoming().optionIds.size() >= 1;
+        }
+      }
+    }
+
+    // --------------------------------------------------------- skill exchange
+    match /exchanges/{id} {
+      allow get, list: if signedIn() && uid() in existing().participants;
+      allow create: if signedIn() && incoming().aId == uid() && incoming().participants.size() == 2
+        && uid() in incoming().participants && incoming().status == 'proposed' && stamped('createdAt');
+      allow update: if signedIn() && uid() in existing().participants
+        && !changed().hasAny(['aId', 'bId', 'participants', 'createdAt']);
+    }
+
+    match /sessions/{id} {
+      allow get, list: if isAdmin() || (signedIn() && uid() in existing().participants);
+      allow create: if signedIn() && uid() in incoming().participants;
+      allow update: if isAdmin() || (signedIn() && uid() in existing().participants);
+    }
+
+    // -------------------------------------------------------------- happening
+    match /activities/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && isRef(incoming().createdBy) && incoming().goingCount == 0
+        && str(incoming().title, 80) && stamped('createdAt');
+      allow update: if signedIn() && (
+        (existing().createdBy.uid == uid() && !changed().hasAny(['createdBy', 'createdAt', 'goingCount']))
+        || (onlyChanges(['goingCount']) && counterStep('goingCount'))
+      );
+      allow delete: if existing().createdBy.uid == uid() || isAdmin();
+      match /rsvps/{userId} {
+        allow read: if signedIn();
+        allow create, delete: if isSelf(userId);
+      }
+    }
+
+    match /hangouts/{id} {
+      function hangout() { return get(/databases/$(database)/documents/hangouts/$(id)).data; }
+      function isHost() { return existing().createdBy.uid == uid(); }
+      allow read: if signedIn();
+      allow create: if signedIn() && isRef(incoming().createdBy) && incoming().memberCount == 1
+        && incoming().status == 'open' && incoming().limit >= 2 && incoming().limit <= 30
+        && str(incoming().title, 80) && stamped('createdAt');
+      allow update: if signedIn() && (
+        (isHost() && !changed().hasAny(['createdBy', 'createdAt']))
+        || (onlyChanges(['memberCount', 'status']) && counterStep('memberCount')
+            && incoming().memberCount <= existing().limit && incoming().status in ['open', 'full']
+            && existing().status in ['open', 'full'])
+      );
+      allow delete: if existing().createdBy.uid == uid() || isAdmin();
+      match /members/{userId} {
+        allow read: if signedIn();
+        allow create: if (isSelf(userId) && (hangout().joinMode == 'instant' || approved()))
+          || hangout().createdBy.uid == uid();
+        allow delete: if isSelf(userId) || hangout().createdBy.uid == uid();
+        function approved() {
+          return get(/databases/$(database)/documents/hangouts/$(id)/requests/$(userId)).data.status == 'approved';
+        }
+      }
+      match /requests/{userId} {
+        allow read: if isSelf(userId) || hangout().createdBy.uid == uid();
+        allow create: if isSelf(userId) && incoming().status == 'pending';
+        allow update: if hangout().createdBy.uid == uid() && onlyChanges(['status']);
+        allow delete: if isSelf(userId) || hangout().createdBy.uid == uid();
+      }
+    }
+
+    match /events/{id} {
+      function isOrganiser() { return existing().createdBy == uid(); }
+      allow read: if signedIn();
+      allow create: if signedIn() && incoming().createdBy == uid() && incoming().goingCount == 0
+        && incoming().waitlistCount == 0 && incoming().capacity >= 2 && str(incoming().title, 80)
+        && stamped('createdAt');
+      allow update: if signedIn() && (
+        (isOrganiser() && !changed().hasAny(['createdBy', 'createdAt']))
+        || (onlyChanges(['goingCount', 'waitlistCount'])
+            && (incoming().goingCount - existing().goingCount) in [-1, 0, 1]
+            && (incoming().waitlistCount - existing().waitlistCount) in [-1, 0, 1])
+      );
+      allow delete: if existing().createdBy == uid() || isAdmin();
+      match /rsvps/{userId} {
+        allow read: if signedIn();
+        allow create, delete: if isSelf(userId);
+        // waitlist promotion: whoever cancels (inside the transaction) or the organiser flips the next person to going
+        allow update: if signedIn() && onlyChanges(['status', 'position'])
+          && ((existing().status == 'waitlisted' && incoming().status == 'going')
+              || get(/databases/$(database)/documents/events/$(id)).data.createdBy == uid());
+      }
+      match /updates/{updateId} {
+        allow read: if signedIn();
+        allow create: if get(/databases/$(database)/documents/events/$(id)).data.createdBy == uid()
+          && str(incoming().text, 500) && stamped('createdAt');
+      }
+    }
+
+    // ------------------------------------------------------------------ rides
+    match /rides/{id} {
+      function ride() { return get(/databases/$(database)/documents/rides/$(id)).data; }
+      function isDriver() { return existing().driver.uid == uid(); }
+      allow read: if signedIn();
+      allow create: if isVerified() && isRef(incoming().driver) && incoming().seatsTaken == 0
+        && incoming().passengerIds == [] && incoming().status == 'open'
+        && incoming().seats >= 1 && incoming().seats <= 6 && stamped('createdAt');
+      allow update: if signedIn() && (
+        (isDriver() && !changed().hasAny(['driver', 'createdAt']))
+        // a passenger dropping out removes only themselves
+        || (uid() in existing().passengerIds && onlyChanges(['passengerIds', 'seatsTaken', 'status'])
+            && existing().passengerIds.removeAll(incoming().passengerIds) == [uid()] && delta('seatsTaken', -1))
+      );
+      allow delete: if existing().driver.uid == uid() || isAdmin();
+      match /requests/{userId} {
+        allow read: if isSelf(userId) || ride().driver.uid == uid();
+        allow create: if isSelf(userId) && incoming().status == 'pending' && str(incoming().message, 200);
+        allow update: if ride().driver.uid == uid() && onlyChanges(['status']);
+        allow delete: if isSelf(userId) || ride().driver.uid == uid();
+      }
+    }
+
+    // ---------------------------------------------------------------- errands
+    match /trips/{id} {
+      function trip() { return get(/databases/$(database)/documents/trips/$(id)).data; }
+      allow read: if signedIn();
+      allow create: if isVerified() && isRef(incoming().traveller) && incoming().itemCount == 0
+        && incoming().requesterIds == [] && incoming().status == 'open' && stamped('createdAt');
+      // requesters move the counter by one and may add (only) themselves to requesterIds
+      allow update: if signedIn() && (
+        (existing().traveller.uid == uid() && !changed().hasAny(['traveller', 'createdAt']))
+        || (onlyChanges(['itemCount', 'requesterIds']) && counterStep('itemCount')
+            && incoming().requesterIds.hasAll(existing().requesterIds)
+            && incoming().requesterIds.removeAll(existing().requesterIds).hasOnly([uid()]))
+      );
+      allow delete: if existing().traveller.uid == uid() || isAdmin();
+      match /items/{itemId} {
+        allow read: if signedIn();
+        allow create: if signedIn() && isRef(incoming().requester) && incoming().status == 'requested'
+          && str(incoming().item, 80) && trip().status == 'open' && stamped('createdAt');
+        allow update: if signedIn() && onlyChanges(['status', 'updatedAt']) && (
+          (trip().traveller.uid == uid() && incoming().status in ['accepted', 'declined', 'picked_up', 'delivered'])
+          || (existing().requester.uid == uid() && incoming().status == 'cancelled')
+        );
+        allow delete: if existing().requester.uid == uid() && existing().status == 'requested';
+      }
+    }
+
+    // ------------------------------------------------------------------ teams
+    match /teams/{id} {
+      function team() { return get(/databases/$(database)/documents/teams/$(id)).data; }
+      allow read: if signedIn();
+      allow create: if signedIn() && isRef(incoming().owner) && incoming().memberIds == [uid()]
+        && incoming().status == 'open' && str(incoming().name, 80) && stamped('createdAt');
+      allow update: if signedIn() && (
+        (existing().owner.uid == uid() && !changed().hasAny(['owner', 'createdAt']))
+        // a member leaving: drops exactly themselves, may free their role and reopen the team
+        || (uid() in existing().memberIds && onlyChanges(['memberIds', 'roles', 'status'])
+            && existing().memberIds.removeAll(incoming().memberIds) == [uid()]
+            && incoming().status in ['open', existing().status])
+      );
+      allow delete: if existing().owner.uid == uid() || isAdmin();
+      match /applications/{userId} {
+        allow read: if isSelf(userId) || team().owner.uid == uid();
+        allow list: if team().owner.uid == uid();
+        allow create: if isSelf(userId) && incoming().status == 'pending' && str(incoming().pitch, 600);
+        allow update: if team().owner.uid == uid() && onlyChanges(['status']);
+        allow delete: if isSelf(userId);
+      }
+      match /members/{userId} {
+        allow read: if signedIn();
+        allow create: if team().owner.uid == uid();
+        allow delete: if isSelf(userId) || team().owner.uid == uid();
+      }
+    }
+
+    // ------------------------------------------------ tutoring & volunteering
+    match /applications/{id} {
+      allow get, list: if isAdmin() || existing().applicant.uid == uid();
+      allow create: if isVerified() && isRef(incoming().applicant) && incoming().status == 'pending'
+        && incoming().kind in ['tutor', 'volunteer'] && stamped('createdAt');
+      allow update: if isAdmin() && onlyChanges(['status', 'reviewerId', 'note', 'decidedAt']);
+    }
+
+    match /tutors/{tutorId} {
+      allow read: if signedIn();
+      allow create: if isAdmin() || (isSelf(tutorId) && isTutor());
+      allow update: if signedIn() && (
+        (isSelf(tutorId) && isTutor() && !changed().hasAny(['ratingAvg', 'ratingCount', 'verifiedStudent']))
+        || isAdmin()
+        || (onlyChanges(['ratingAvg', 'ratingCount']) && delta('ratingCount', 1))
+      );
+      match /slots/{slotId} {
+        allow read: if signedIn();
+        // created inside the booking transaction by the student who owns the booking
+        allow create: if signedIn()
+          && getAfter(/databases/$(database)/documents/bookings/$(incoming().bookingId)).data.studentId == uid()
+          && getAfter(/databases/$(database)/documents/bookings/$(incoming().bookingId)).data.tutorId == tutorId;
+        allow delete: if isSelf(tutorId)
+          || get(/databases/$(database)/documents/bookings/$(existing().bookingId)).data.studentId == uid();
+      }
+      match /reviews/{bookingId} {
+        allow read: if signedIn();
+        allow create: if signedIn() && isRef(incoming().student)
+          && incoming().rating >= 1 && incoming().rating <= 5 && str(incoming().text, 400)
+          && get(/databases/$(database)/documents/bookings/$(bookingId)).data.studentId == uid()
+          && get(/databases/$(database)/documents/bookings/$(bookingId)).data.tutorId == tutorId;
+      }
+    }
+
+    match /bookings/{id} {
+      allow get, list: if isAdmin() || existing().studentId == uid() || existing().tutorId == uid();
+      allow create: if signedIn() && incoming().studentId == uid() && incoming().tutorId != uid()
+        && incoming().status == 'pending_payment' && incoming().reviewed == false && stamped('createdAt');
+      allow update: if signedIn() && (existing().studentId == uid() || existing().tutorId == uid() || isAdmin())
+        && !changed().hasAny(['studentId', 'tutorId', 'start', 'end', 'rate', 'createdAt']);
+    }
+
+    match /volunteers/{volunteerId} {
+      allow read: if signedIn();
+      allow create: if isAdmin() || (isSelf(volunteerId) && isVolunteer());
+      allow update: if isAdmin() || (isSelf(volunteerId) && isVolunteer());
+    }
+
+    match /supportRequests/{id} {
+      allow get, list: if isAdmin() || isVolunteer() || existing().requester.uid == uid();
+      allow create: if signedIn() && isRef(incoming().requester) && incoming().status == 'open'
+        && incoming().volunteer == null && str(incoming().course, 80) && stamped('createdAt');
+      allow update: if signedIn() && (
+        (existing().requester.uid == uid() && !changed().hasAny(['requester', 'createdAt']))
+        // a volunteer may attach themselves to an open request, or detach themselves again
+        || (isVolunteer() && onlyChanges(['volunteer', 'status', 'candidateIds'])
+            && ((existing().volunteer == null && incoming().volunteer.uid == uid() && incoming().status == 'matched')
+                || (existing().volunteer != null && existing().volunteer.uid == uid()
+                    && incoming().volunteer == null && incoming().status == 'open')))
+        || isAdmin()
+      );
+    }
+
+    // ---------------------------------------------------------------- safety
+    match /reports/{id} {
+      allow get, list: if isAdmin() || existing().reporterId == uid();
+      allow create: if signedIn() && incoming().reporterId == uid() && incoming().status == 'open'
+        && str(incoming().details, 500) && stamped('createdAt');
+      allow update: if isAdmin() && onlyChanges(['status', 'action', 'reviewerId']);
+    }
+
+    match /auditLog/{id} {
+      allow read, create: if isAdmin();
+    }
+  }
+}

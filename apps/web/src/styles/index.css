@@ -1,0 +1,155 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+
+@theme {
+  --color-*: initial;
+
+  /* Brand */
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-brand-50: #fff4f0;
+  --color-brand-100: #ffe5db;
+  --color-brand-200: #ffc7b2;
+  --color-brand-500: #ff5a1f;
+  --color-brand-600: #f04a10;
+  --color-brand-700: #d63c05;
+  --color-brand-800: #a32e05;
+
+  /* Secondary */
+  --color-teal-50: #f0fdfa;
+  --color-teal-100: #ccfbf1;
+  --color-teal-600: #0d9488;
+  --color-teal-700: #0f766e;
+  --color-teal-800: #115e59;
+
+  /* Neutrals */
+  --color-canvas: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-line: #e4e7ec;
+  --color-line-strong: #d0d5dd;
+  --color-ink: #111827;
+  --color-ink-2: #4b5563;
+  --color-ink-3: #6b7280;
+  --color-ink-4: #9ca3af;
+
+  /* Semantic */
+  --color-success: #0d9488;
+  --color-warning: #b54708;
+  --color-warning-bg: #fffaeb;
+  --color-danger: #b42318;
+  --color-danger-bg: #fef3f2;
+  --color-info: #175cd3;
+  --color-info-bg: #eff4ff;
+
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.05);
+  --shadow-pop: 0 8px 24px rgb(16 24 40 / 0.12), 0 1px 2px rgb(16 24 40 / 0.06);
+
+  --text-display: 28px;
+  --text-display--line-height: 34px;
+  --text-h1: 22px;
+  --text-h1--line-height: 28px;
+  --text-h2: 18px;
+  --text-h2--line-height: 24px;
+  --text-h3: 15px;
+  --text-h3--line-height: 20px;
+  --text-body: 15px;
+  --text-body--line-height: 22px;
+  --text-small: 13px;
+  --text-small--line-height: 18px;
+  --text-micro: 11px;
+  --text-micro--line-height: 14px;
+
+  --spacing-topbar: 52px;
+  --spacing-tabs: 56px;
+  --spacing-sidebar: 240px;
+  --spacing-content: 640px;
+  --spacing-wide: 1040px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-canvas text-ink font-sans text-body antialiased;
+    overscroll-behavior-y: none;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-semibold text-ink;
+    letter-spacing: -0.01em;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+  ::placeholder {
+    @apply text-ink-4;
+  }
+  [hidden] {
+    display: none !important;
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+@utility eyebrow {
+  @apply text-micro font-semibold uppercase tracking-[0.04em] text-ink-3;
+}
+
+@utility hide-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes pulse-soft {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.skeleton {
+  @apply rounded-sm bg-canvas;
+  animation: pulse-soft 1.2s ease-in-out infinite;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+.sheet-enter {
+  animation: sheet-up 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .sheet-enter {
+    animation: none;
+  }
+}
