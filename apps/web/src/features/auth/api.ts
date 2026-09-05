@@ -1,4 +1,4 @@
-import {
+﻿import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
   sendPasswordResetEmail,
@@ -44,7 +44,7 @@ export const resetPassword = (email: string) => sendPasswordResetEmail(auth, ema
 export const resendVerification = () => auth.currentUser && sendEmailVerification(auth.currentUser, verifyUrl())
 
 /**
- * Creates `users/{uid}` on first sign-in. Idempotent — safe to call on every
+ * Creates `users/{uid}` on first sign-in. Idempotent â€” safe to call on every
  * login, which also heals accounts whose doc creation failed mid-way.
  */
 export async function ensureUserDoc(user: FirebaseUser, displayName?: string) {
@@ -100,3 +100,5 @@ export async function syncVerifiedStudent(user: FirebaseUser, profile: User) {
   }
   return eligible
 }
+
+
