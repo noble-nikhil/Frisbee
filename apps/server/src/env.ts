@@ -1,10 +1,13 @@
 import { readFileSync } from 'node:fs'
 
 // Tiny .env loader so we don't pull in dotenv just for local dev. Real deployments set env vars.
+// Splits on \r?\n and trims: a file saved on Windows (CRLF) must not leave "\r" on every value.
 try {
-  for (const line of readFileSync(new URL('../.env', import.meta.url), 'utf8').split('\n')) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/)
-    if (m && process.env[m[1]!] === undefined) process.env[m[1]!] = m[2]!.replace(/^["']|["']$/g, '')
+  for (const line of readFileSync(new URL('../.env', import.meta.url), 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/)
+    if (!m) continue
+    const value = m[2]!.trim().replace(/^["']|["']$/g, '')
+    if (process.env[m[1]!] === undefined) process.env[m[1]!] = value
   }
 } catch {
   // no .env file — fine
