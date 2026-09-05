@@ -1,5 +1,7 @@
 # frisbee — Firebase setup tutorial (Auth, Firestore, Storage, Emulators, Service account)
 
+> **Superseded (Sept 2026):** the project stays on the free **Spark** plan and uses **Cloudinary** instead of Firebase Storage. Skip §1.1 (Blaze) and Part 5 (Storage). The current, Windows-friendly, end-to-end guide — Firebase + Cloudinary + Vercel + Render — is [06-Deployment-Guide.md](06-Deployment-Guide.md).
+
 Follow this top to bottom once. Estimated time: 30–40 minutes. One person does it and shares the results with the team via the private channel (never commit the service-account file).
 
 At the end you will have:

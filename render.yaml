@@ -1,24 +1,28 @@
-# Render blueprint for the Node service (free tier). Set the secret env vars in the dashboard.
+# Render blueprint for the Node service (free tier). Dashboard → New → Blueprint → pick the repo.
+# Secret values (sync: false) are asked for in the dashboard on first deploy.
 services:
   - type: web
     name: frisbee-api
     runtime: node
     plan: free
     rootDir: .
-    buildCommand: corepack enable && pnpm install --frozen-lockfile
+    # Node 22 still ships Corepack, which reads packageManager from package.json → pnpm 10.
+    buildCommand: corepack enable && corepack prepare pnpm@10.34.5 --activate && pnpm install --frozen-lockfile
     startCommand: pnpm --filter @frisbee/server start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
-        value: 20.19.0
+        value: 22.22.0
       - key: PORT
         value: 8787
       - key: COLLEGE_DOMAIN
         value: srmap.edu.in
       - key: FIREBASE_PROJECT_ID
         value: frisbee-9fcfb
+      # Comma-separated browser origins, e.g. https://frisbee.vercel.app,http://localhost:5173
       - key: ALLOWED_ORIGINS
         sync: false
+      # base64 of the service-account JSON: pnpm --filter @frisbee/server encode-service-account <file>
       - key: FIREBASE_SERVICE_ACCOUNT
         sync: false
       - key: CLOUDINARY_CLOUD_NAME

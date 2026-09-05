@@ -13,7 +13,7 @@ import { tokenize, type User } from '@frisbee/shared'
 import { auth, googleProvider } from '@/lib/firebase'
 import { cols, doc, now, set } from '@/lib/firestore'
 import { emailDomain } from '@/lib/utils'
-import { env } from '@/lib/env'
+import { apiUrl, env } from '@/lib/env'
 
 const verifyUrl = () => ({ url: `${window.location.origin}/verify` })
 
@@ -90,8 +90,8 @@ export async function syncVerifiedStudent(user: FirebaseUser, profile: User) {
   const eligible = user.emailVerified && emailDomain(user.email ?? '') === env.collegeDomain
   if (eligible && !profile.roles.verifiedStudent) {
     await updateDoc(doc(cols.users, user.uid), { 'roles.verifiedStudent': true, updatedAt: now() })
-    // best effort: ask the Node service to set the claim too
-    fetch('/api/auth/refresh-claims', {
+    // best effort: ask the Node service to set the claim too (VITE_API_URL on Vercel, proxied in dev)
+    fetch(apiUrl('/api/auth/refresh-claims'), {
       method: 'POST',
       headers: { Authorization: `Bearer ${await user.getIdToken()}` },
     })

@@ -3,11 +3,12 @@
   "private": true,
   "packageManager": "pnpm@10.34.5",
   "engines": {
-    "node": ">=20.19"
+    "node": ">=20.19 <25"
   },
   "scripts": {
     "dev": "pnpm --filter @frisbee/web dev",
     "dev:server": "pnpm --filter @frisbee/server dev",
+    "dev:server:emulator": "pnpm --filter @frisbee/server dev:emulator",
     "build": "pnpm --filter @frisbee/web build",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint . --config eslint.config.mjs",
@@ -17,7 +18,8 @@
     "test:rules": "firebase emulators:exec --only firestore \"vitest run --config tests/rules/vitest.config.ts\"",
     "seed:emulator": "pnpm --filter @frisbee/server seed:emulator",
     "seed": "pnpm --filter @frisbee/server seed",
-    "deploy:rules": "firebase deploy --only firestore"
+    "deploy:rules": "firebase deploy --only firestore",
+    "doctor": "node scripts/doctor.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

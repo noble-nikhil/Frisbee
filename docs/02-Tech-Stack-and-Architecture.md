@@ -21,7 +21,7 @@ This is the locked stack. Anything not listed here needs a team decision before 
 | Auth | **Firebase Authentication** (email/password + Google) with **custom claims** for roles | Spec requirement. |
 | Database | **Cloud Firestore** (Native mode, `asia-south1` Mumbai) | Spec requirement; realtime listeners give us chat & notifications for free. |
 | Realtime chat | **Firestore `onSnapshot`** (not Socket.io, not RTDB) | One database, one rules language, works offline, no server on the hot path. RTDB only if we add presence/typing (C priority). |
-| Files | **Firebase Storage** (Blaze plan, free quotas) | Profile photos, post images, proof documents. |
+| Files | **Cloudinary** (free tier, unsigned browser uploads + server-side deletes) | Profile photos, post images, proof documents. Firebase Storage was dropped because it now requires the Blaze plan. |
 | Server | **Node 22 + Express 5 + firebase-admin** (TypeScript, `tsx` for dev, `tsc` for build) | Spec requirement ("Node.js backend"). Kept thin on purpose — see §3. |
 | Push (optional) | Firebase Cloud Messaging | C priority; only if time remains. |
 | Hosting | **Vercel** (web) + **Render** (Node service) | Spec suggestion; both free. Vercel `rewrites` → SPA fallback. |
@@ -57,7 +57,7 @@ frisbee/
 │   │   └── src/
 │   │       ├── main.tsx  app.tsx  router.tsx
 │   │       ├── styles/index.css           # @import "tailwindcss"; @theme { tokens }
-│   │       ├── lib/firebase.ts            # initializeApp, getAuth, getFirestore(persistence), getStorage
+│   │       ├── lib/firebase.ts            # initializeApp, getAuth, initializeFirestore(persistence)
 │   │       ├── lib/api.ts                 # fetch wrapper for the Node service (adds ID token)
 │   │       ├── lib/firestore/             # typed converters + query builders per collection
 │   │       ├── hooks/                     # useAuth, useCollection, useDoc, useInstallPrompt, useMediaQuery

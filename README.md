@@ -12,26 +12,28 @@ apps/server      Express 5 + firebase-admin service (:8787) + demo seed script
 packages/shared  Types, zod schemas, tag taxonomy, matching + search helpers (used by both)
 firestore.rules  Security rules — the real authorisation layer
 tests/rules      Rules tests (vitest + @firebase/rules-unit-testing, 26 tests)
-docs/            01 PRD · 02 tech stack · 03 Firebase setup · 04 UI design system · 05 pitch stats
+scripts/         doctor.mjs — checks your local + cloud config and tells you what to fix
+docs/            01 PRD · 02 tech stack · 03 Firebase setup · 04 UI design system · 05 pitch stats · 06 deployment
 design/          Style tile, pitch slides, icon assets
 ```
 
 ## Run it locally
 
-Requirements: Node ≥ 20.19, pnpm 10 (via `corepack enable`), Java ≥ 21 for the Firestore emulator.
+Requirements: Node 22 LTS (20.19+ works), pnpm 10 (`corepack enable`), Java 21+ only if you want the Firestore emulator. All commands work in PowerShell, cmd and bash.
 
 ```bash
 pnpm install
-cp apps/web/.env.example apps/web/.env.local      # fill in the Firebase web config
-cp apps/server/.env.example apps/server/.env      # fill in Cloudinary + service account
+copy apps\web\.env.example apps\web\.env.local        # (cp on macOS/Linux) fill in the Firebase web config + Cloudinary cloud name
+copy apps\server\.env.example apps\server\.env        # only needed for the API / live seeding
+pnpm doctor                                            # verifies Node, pnpm, Java, env files, Firebase key, Cloudinary preset
 
 pnpm emulators            # Auth :9099, Firestore :8081, UI :4000   (terminal 1)
-pnpm seed:emulator        # demo accounts + data into the emulator  (once)
+pnpm seed:emulator        # demo accounts + data into the emulator  (once per emulator start)
 pnpm dev                  # web app on http://localhost:5173        (terminal 2)
-pnpm dev:server           # API on :8787, proxied under /api        (terminal 3, optional)
+pnpm dev:server:emulator  # API on :8787, proxied under /api        (terminal 3, optional)
 ```
 
-Set `VITE_USE_EMULATORS=true` in `apps/web/.env.local` to use the emulators, `false` to hit the live Firebase project. In emulator mode the dev server proxies the emulators through its own origin, so the app also works from a phone on the same network.
+`VITE_USE_EMULATORS=true` in `apps/web/.env.local` → the app uses the local emulators; `false` → the live Firebase project (`pnpm dev` + `pnpm dev:server`). In emulator mode the dev server proxies the emulators through its own origin, so the app also works from a phone on the same Wi-Fi.
 
 ### Demo accounts (password `frisbee-demo`)
 
@@ -47,6 +49,7 @@ Set `VITE_USE_EMULATORS=true` in `apps/web/.env.local` to use the emulators, `fa
 ## Checks
 
 ```bash
+pnpm doctor           # environment + Firebase + Cloudinary configuration check
 pnpm typecheck        # tsc across all packages
 pnpm lint             # eslint (react-hooks, react-refresh, typescript-eslint)
 pnpm test             # shared package unit tests
@@ -56,11 +59,15 @@ pnpm build            # production build of apps/web (PWA precache generated)
 
 ## Deploy
 
-- **Firestore rules + indexes**: `firebase login && pnpm deploy:rules` (deploys `firestore.rules` and `firestore.indexes.json` to `frisbee-9fcfb`).
-- **Web** → Vercel: import the repo, `vercel.json` already sets the pnpm install/build commands, output dir and SPA rewrite. Add the `VITE_*` env vars from `apps/web/.env.example` (with `VITE_USE_EMULATORS=false`).
-- **API** → Render: `render.yaml` blueprint (free plan). Set `FIREBASE_SERVICE_ACCOUNT` (base64 of the service-account JSON), `ALLOWED_ORIGINS` (the Vercel URL), Cloudinary vars. Point an external cron (e.g. cron-job.org) at `POST /api/cron/reminders?key=<CRON_KEY>` every 15 minutes for session reminders.
-- **Cloudinary**: create an unsigned upload preset named `frisbee_unsigned` (folder `frisbee`, image-only, ≤ 5 MB) and put the cloud name in both env files.
-- **Seed the live project**: `pnpm seed` with `GOOGLE_APPLICATION_CREDENTIALS` pointing at the service-account JSON.
+Full step-by-step guide (Windows-friendly, with every console click): **[docs/06-Deployment-Guide.md](docs/06-Deployment-Guide.md)**. Short version:
+
+1. **Firebase**: enable Email/Password (+ Google) sign-in, create Firestore, `firebase login` then `pnpm deploy:rules`, add your Vercel domain under Authentication → Settings → Authorized domains, download a service-account key.
+2. **Cloudinary**: Settings → API keys → copy the *cloud name*; Settings → Upload → Upload presets → add `frisbee_unsigned` with Signing mode **Unsigned**.
+3. **Vercel**: import the GitHub repo, keep Root Directory = repo root (`vercel.json` supplies build command, output dir and SPA rewrite), Node.js 22.x, add every `VITE_*` variable from `apps/web/.env.example` with `VITE_USE_EMULATORS=false`, deploy.
+4. **Render** (API): New → Blueprint → the repo (`render.yaml`); paste `FIREBASE_SERVICE_ACCOUNT` (from `pnpm --filter @frisbee/server encode-service-account <file.json>`), `ALLOWED_ORIGINS`, Cloudinary keys. Put its URL in Vercel as `VITE_API_URL` and redeploy. Optional external cron → `POST /api/cron/reminders?key=<CRON_KEY>` every 15 min.
+5. **Seed the live project**: `pnpm seed` with `apps/server/.env` pointing at the service-account JSON.
+
+The web app degrades gracefully: without `VITE_API_URL` the claim refresh is skipped (rules fall back to the user document), without a Cloudinary cloud name photo uploads are disabled with a visible note, and a missing Firebase variable shows a "not configured" page naming the variable instead of a blank screen.
 
 ## Conventions
 

@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:emulator": "node scripts/with-emulators.mjs tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "seed": "tsx scripts/seed.ts",
-    "seed:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8081 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 tsx scripts/seed.ts"
+    "seed:emulator": "node scripts/with-emulators.mjs tsx scripts/seed.ts",
+    "encode-service-account": "node scripts/encode-service-account.mjs"
   },
   "dependencies": {
     "@frisbee/shared": "workspace:*",

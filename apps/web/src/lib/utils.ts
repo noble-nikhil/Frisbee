@@ -74,6 +74,10 @@ export function friendlyError(err: unknown): string {
     'auth/too-many-requests': 'Too many attempts. Try again in a few minutes.',
     'auth/popup-closed-by-user': 'Sign-in was cancelled.',
     'auth/network-request-failed': 'Network error. Check your connection.',
+    'auth/operation-not-allowed': 'This sign-in method is not enabled in Firebase yet.',
+    // Both mean the site's domain is missing from Firebase → Authentication → Settings → Authorized domains
+    'auth/unauthorized-domain': "This site's domain is not authorized in Firebase yet.",
+    'auth/unauthorized-continue-uri': "This site's domain is not authorized in Firebase yet.",
     'permission-denied': "You don't have permission to do that.",
     unavailable: "You're offline. We'll retry when you're back.",
     'failed-precondition': 'That action is no longer possible.',
