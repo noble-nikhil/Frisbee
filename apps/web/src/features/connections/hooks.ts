@@ -1,4 +1,4 @@
-import { query, where, limit, orderBy } from 'firebase/firestore'
+import { query, where, limit } from 'firebase/firestore'
 import { useCollection } from '@/hooks/use-collection'
 import { cols, subs } from '@/lib/firestore'
 
@@ -11,7 +11,9 @@ export function useConnections(uid: string) {
 
 export function useIncomingRequests(uid: string) {
   return useCollection(
-    query(cols.connectionRequests, where('to', '==', uid), where('status', '==', 'pending'), orderBy('createdAt', 'desc'), limit(50)),
+    // Sort in the UI instead of requiring a composite Firestore index that
+    // may not have been deployed with the production rules.
+    query(cols.connectionRequests, where('to', '==', uid), where('status', '==', 'pending'), limit(50)),
     `req-in:${uid}`,
   )
 }

@@ -191,6 +191,10 @@ function RequestsTab() {
   const outgoing = useOutgoingRequests(me.uid)
   const { toast } = useToast()
   const [busy, setBusy] = useState<string | null>(null)
+  const received = useMemo(
+    () => [...incoming.data].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()),
+    [incoming.data],
+  )
 
   const act = async (fn: () => Promise<unknown>, id: string, ok: string) => {
     setBusy(id)
@@ -210,11 +214,11 @@ function RequestsTab() {
     <div className="flex flex-col gap-6">
       <section>
         <h2 className="eyebrow mb-2">Received</h2>
-        {incoming.data.length === 0 ? (
+        {received.length === 0 ? (
           <p className="text-small text-ink-3">No pending requests.</p>
         ) : (
           <div className="divide-y divide-line rounded-md border border-line bg-surface px-3">
-            {incoming.data.map((r) => (
+            {received.map((r) => (
               <ListRow
                 key={r.id}
                 leading={
