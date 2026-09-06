@@ -1,78 +1,68 @@
-# frisbee
+🥏 Frisbee
 
-Campus skill & interest-based friend finder for SRM AP. Built by **team Hello World** for the hackathon.
+Find Your People on Campus.
 
-Installable web app (Android + iOS), one codebase: React 19 + TypeScript + Tailwind v4 on the front, Firebase Auth + Firestore for data, a thin Node/Express service for the few things that need admin credentials (custom claims, Cloudinary deletes, reminders), Cloudinary for images. Everything runs on free tiers.
+Frisbee is a campus skill- and interest-based friend finder — built to help students connect with people based on what they're passionate about and good at, not just random circumstance like the same class or hostel room.
 
-## Repository layout
+"You throw out who you are — we make sure the right person catches it."
 
-```
-apps/web         Vite + React PWA (the product)
-apps/server      Express 5 + firebase-admin service (:8787) + demo seed script
-packages/shared  Types, zod schemas, tag taxonomy, matching + search helpers (used by both)
-firestore.rules  Security rules — the real authorisation layer
-tests/rules      Rules tests (vitest + @firebase/rules-unit-testing, 26 tests)
-scripts/         doctor.mjs — checks your local + cloud config and tells you what to fix
-docs/            01 PRD · 02 tech stack · 03 Firebase setup · 04 UI design system · 05 pitch stats · 06 deployment
-design/          Style tile, pitch slides, icon assets
-```
+<hr>
 
-## Run it locally
+🚨 The Problem
 
-Requirements: Node 22 LTS (20.19+ works), pnpm 10 (`corepack enable`), Java 21+ only if you want the Firestore emulator. All commands work in PowerShell, cmd and bash.
+Stepping into college brings a new kind of freedom — no one's watching your every move, and you get to explore and experiment for the first time. But with that freedom comes a quieter reality: loneliness.
 
-```bash
-pnpm install
-copy apps\web\.env.example apps\web\.env.local        # (cp on macOS/Linux) fill in the Firebase web config + Cloudinary cloud name
-copy apps\server\.env.example apps\server\.env        # only needed for the API / live seeding
-pnpm doctor                                            # verifies Node, pnpm, Java, env files, Firebase key, Cloudinary preset
+1 in 2 students face the problem of feeling alone during their college journey 269 Million students affected worldwide 4.5 Crore students affected in India 2,300+ students facing this at SRM AP alone
 
-pnpm emulators            # Auth :9099, Firestore :8081, UI :4000   (terminal 1)
-pnpm seed:emulator        # demo accounts + data into the emulator  (once per emulator start)
-pnpm dev                  # web app on http://localhost:5173        (terminal 2)
-pnpm dev:server:emulator  # API on :8787, proxied under /api        (terminal 3, optional)
-```
+Most friendships today happen by accident — same class, same hostel, same lunch table. There's no real system that connects students by shared skills or interests. Clubs struggle to find the right talent, students spend weeks looking for project teammates, and introverts or first-years are often left behind entirely.
 
-`VITE_USE_EMULATORS=true` in `apps/web/.env.local` → the app uses the local emulators; `false` → the live Firebase project (`pnpm dev` + `pnpm dev:server`). In emulator mode the dev server proxies the emulators through its own origin, so the app also works from a phone on the same Wi-Fi.
+It's not a shortage of people — it's a shortage of a system that connects them.
 
-### Demo accounts (password `frisbee-demo`)
+<hr>
 
-| Email | Who |
-| --- | --- |
-| `judge1@srmap.edu.in` | Verified student — start here |
-| `meera.tutor@srmap.edu.in` | Verified tutor with reviews and open slots |
-| `sana.s@srmap.edu.in` | Verified accessibility volunteer |
-| `admin@srmap.edu.in` | Platform admin — approvals, reports, roles |
-| `guest@gmail.com` | Personal-email account (sees the verified-only gates) |
-| `arjun.r@ / dev.p@ / priya.i@ / rohan.d@srmap.edu.in` | Other students with rides, teams, groups, communities |
+💡 The Solution
 
-## Checks
+Frisbee is a campus-exclusive platform that matches students based on shared skills and interests — not geography or coincidence.
 
-```bash
-pnpm doctor           # environment + Firebase + Cloudinary configuration check
-pnpm typecheck        # tsc across all packages
-pnpm lint             # eslint (react-hooks, react-refresh, typescript-eslint)
-pnpm test             # shared package unit tests
-pnpm test:rules       # security rules against the emulator
-pnpm build            # production build of apps/web (PWA precache generated)
-```
+How It Works Build Your Profile — Tag your skills (coding, sports, music, design, etc.) and interests. Smart Matching — Get matched with similar people and complementary ones. Connect Easily — Icebreaker prompts remove the awkwardness of the first message, and interest-based groups make it easy to find your people at scale.
+<br>
+✨ Key Features:
+<br>
+🔍 Skill & Interest Matching — Connects students based on genuine compatibility, not chance
+<br>
+💬 Icebreaker Prompts — Auto-generated conversation starters based on shared tags
+<br>
+👥 Interest-Based Groups — Discover and join communities around shared passions
+<br>
+🧑‍💻 Hackathon Team Finder — Find teammates by skill before a hackathon even starts
+<br>
+🚗 Carpooling — Connect with students headed the same way
+<br>
+📚 Tutor Matching — Find peer tutors by subject, or become one yourself
+<br>
+<hr>
+🎯 Target Audience
 
-## Deploy
+Frisbee isn't built for just one college — it's built as a scalable, campus-agnostic platform. While it started at SRM AP, the vision is for any college, anywhere, to be able to use it.
 
-Full step-by-step guide (Windows-friendly, with every console click): **[docs/06-Deployment-Guide.md](docs/06-Deployment-Guide.md)**. Short version:
+<hr>
 
-1. **Firebase**: enable Email/Password (+ Google) sign-in, create Firestore, `firebase login` then `pnpm deploy:rules`, add your Vercel domain under Authentication → Settings → Authorized domains, download a service-account key.
-2. **Cloudinary**: Settings → API keys → copy the *cloud name*; Settings → Upload → Upload presets → add `frisbee_unsigned` with Signing mode **Unsigned**.
-3. **Vercel**: import the GitHub repo, keep Root Directory = repo root (`vercel.json` supplies build command, output dir and SPA rewrite), Node.js 22.x, add every `VITE_*` variable from `apps/web/.env.example` with `VITE_USE_EMULATORS=false`, deploy.
-4. **Render** (API): New → Blueprint → the repo (`render.yaml`); paste `FIREBASE_SERVICE_ACCOUNT` (from `pnpm --filter @frisbee/server encode-service-account <file.json>`), `ALLOWED_ORIGINS`, Cloudinary keys. Put its URL in Vercel as `VITE_API_URL` and redeploy. Optional external cron → `POST /api/cron/reminders?key=<CRON_KEY>` every 15 min.
-5. **Seed the live project**: `pnpm seed` with `apps/server/.env` pointing at the service-account JSON.
+🛠️ Tech Stack:
 
-The web app degrades gracefully: without `VITE_API_URL` the claim refresh is skipped (rules fall back to the user document), without a Cloudinary cloud name photo uploads are disabled with a visible note, and a missing Firebase variable shows a "not configured" page naming the variable instead of a blank screen.
+Frisbee is built with a responsive React and TypeScript frontend, powered by Vite and Tailwind CSS, and deployed on Vercel as a progressive web app. We use Firebase Authentication and Firestore for secure login, real-time messaging, connections, communities, and data storage. Cloudinary handles optimized image uploads, while our Node.js and Express backend on Render manages server-side operations. Shared TypeScript packages keep our frontend and backend consistent, secure, and scalable
 
-## Conventions
+<hr>
 
-- Data access lives only in `features/<module>/api.ts`; pages never touch Firestore directly.
-- Queries are index-free where possible (equality filters or a single `orderBy`, sort client-side); the four composite indexes needed are in `firestore.indexes.json`.
-- Participation is denormalised as id arrays (`memberIds`, `passengerIds`, `requesterIds`) so "things I'm in" is one `array-contains` query and one rule.
-- Roles are flags on `users/{uid}.roles`, mirrored to custom claims by `POST /api/auth/refresh-claims`; rules accept either.
-- Design tokens are in `apps/web/src/styles/index.css` (`@theme`). Orange = primary action, teal = verified/status. No gradients, no glass.
+👥 Team — Hello World
+<br>
+Name - Role
+<br>
+Rishabh Nirmal Team Lead — Leading the team & deployment
+<br>
+Nikhil Yadav — Backend
+<br>
+Vindhya Polishety — UI/UX & Frontend Design
+<br>
+Rishav Jha — Pitch Deck & Presentation
+<br>
+Abhishek Yadav — Vibe Coder — Supporting Tech
